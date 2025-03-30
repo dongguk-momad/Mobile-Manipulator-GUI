@@ -1,70 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import io from 'socket.io-client';
-import Header from './components/Header';
-import CameraView from './components/CameraView';
-import LidarView from './components/LidarView';
-import RobotStatus from './components/RobotStatus';
-import ControllerInput from './components/ControllerInput';
-import AlertLog from './components/AlertLog';
-import './App.css';
+import React from "react";
+import RobotInfo from "./components/RobotInfo";
+import SensorInfo from "./components/SensorInfo";
+import ControllerInput from "./components/ControllerInput";
+import ControlButtons from "./components/ControlButtons";
+import NetworkStatus from "./components/NetworkStatus";
 
 function App() {
-  const [connected, setConnected] = useState(false);
-  const [robotStatus, setRobotStatus] = useState({
-    battery: 0,
-    motorTemp: 0,
-    latency: 0,
-    gripperState: 'unknown',
-    jointAngles: [0, 0, 0, 0, 0]
-  });
-  
-  useEffect(() => {
-    const socket = io('http://localhost:5000');
-    
-    socket.on('connect', () => {
-      setConnected(true);
-      console.log('Connected to server');
-    });
-    
-    socket.on('disconnect', () => {
-      setConnected(false);
-      console.log('Disconnected from server');
-    });
-    
-    socket.on('robotStatus', (data) => {
-      setRobotStatus(data);
-    });
-    
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-  
   return (
-    <div className="flex flex-col h-screen">
-      <Header connectionStatus={connected} />
-      <div className="flex flex-1 p-4 bg-gray-100 overflow-hidden">
-        <div className="flex flex-col w-2/3 pr-4">
-          <div className="bg-white rounded-lg shadow mb-4 p-4 h-3/5">
-            <h2 className="text-lg font-semibold mb-2">카메라 및 라이다 뷰</h2>
-            <div className="h-3/4 mb-2">
-              <CameraView />
-            </div>
-            <div className="h-1/4">
-              <LidarView />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4 h-2/5">
-            <AlertLog />
-          </div>
+    <div className="bg-gray-100 min-h-screen p-6">
+      <h1 className="text-3xl font-semibold text-center text-gray-800 mb-8">모바일 매니퓰레이터 GUI</h1>
+
+      {/* 상단: 센서 + 오른쪽 패널 (3:2 비율) */}
+      <div className="flex flex-col lg:flex-row gap-6 mb-6 w-full">
+        {/* 센서 영역 (카메라) - 3/5 */}
+        <div className="lg:basis-2/3 lg:flex-grow-0">
+          <SensorInfo />
         </div>
-        <div className="flex flex-col w-1/3">
-          <div className="bg-white rounded-lg shadow mb-4 p-4 h-1/2">
-            <RobotStatus status={robotStatus} />
-          </div>
-          <div className="bg-white rounded-lg shadow p-4 h-1/2">
+
+        {/* 오른쪽: 로봇 정보 + 조종기 인풋 - 2/5 */}
+        <div className="lg:basis-1/3 lg:flex-grow-0 flex flex-col justify-between gap-6">
+          <RobotInfo />
+          <div className="flex-1 flex items-stretch">
             <ControllerInput />
           </div>
+        </div>
+      </div>
+
+      {/* 하단: 통신 정보 + 조종 버튼 */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-center w-full">
+        <div className="lg:col-span-3">
+          <NetworkStatus />
+        </div>
+        <div className="w-full lg:h-full flex items-stretch">
+          <ControlButtons />
         </div>
       </div>
     </div>
