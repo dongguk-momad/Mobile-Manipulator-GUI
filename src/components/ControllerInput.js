@@ -154,7 +154,7 @@ function Joystick({
         {/* 마스터 로봇팔 조인트 */}
         <div className="mt-4 pt-3 border-t border-gray-100">
           <p className="text-gray-700 font-medium mb-2">마스터 로봇팔 Joint:</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-6 gap-2">
             {jointValues.map((value, index) => (
               <div
                 key={index}
