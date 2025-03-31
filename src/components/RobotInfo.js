@@ -7,9 +7,12 @@ function RobotInfo({
   steeringAngle = 0,
   battery = 100,
   jointAngles = [0, 0, 0, 0, 0, 0],
-  cartesianCoords = [0, 0, 0],
-  gripperStatus = "Open", // "Open" or "Closed"
+  cartesianCoords = [0, 0, 0, 0, 0, 0],
+  gripperOpening = 0.0,
 }) {
+  const getBatteryColor = (battery) => battery <= 20 ? "text-red-600" : "text-gray-800";
+  const getBatteryBgColor = (battery) => battery <= 20 ? "bg-red-600" : "bg-green-500";
+  
   return (
     <div className="bg-white rounded-lg shadow-md p-6 w-full h-full border border-gray-200">
       <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">로봇 정보</h2>
@@ -38,7 +41,7 @@ function RobotInfo({
         {/* 조향 각도 */}
         <div className="flex items-center justify-between">
           <span className="text-gray-700 font-medium">조향 각도:</span>
-          <span className="text-gray-800 font-mono">{steeringAngle}°</span>
+          <span className="text-gray-800 font-mono">{steeringAngle.toFixed(2)}°</span>
         </div>
 
         {/* 배터리 */}
@@ -47,11 +50,13 @@ function RobotInfo({
           <div className="flex items-center">
             <div className="w-24 bg-gray-200 rounded-full h-2.5 mr-2">
               <div
-                className="bg-green-500 h-2.5 rounded-full"
+                className={`h-2.5 rounded-full ${getBatteryBgColor(battery)}`}
                 style={{ width: `${battery}%` }}
               ></div>
             </div>
-            <span className="text-gray-800 font-medium">{battery}%</span>
+            <span className={`font-medium ${getBatteryColor(battery)}`}>
+              {battery.toFixed(1)}%
+            </span>
           </div>
         </div>
 
@@ -63,35 +68,29 @@ function RobotInfo({
           <div className="flex items-center justify-between">
             <span className="text-gray-700 font-medium">조인트 각도:</span>
             <span className="text-gray-800 font-mono">
-              [{jointAngles.map((angle) => `${angle}°`).join(", ")}]
+              [{jointAngles.map((angle) => `${angle.toFixed(1)}°`).join(", ")}]
             </span>
           </div>
 
           {/* 좌표 */}
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">카르테시안 좌표:</span>
+            <span className="text-gray-700 font-medium">Cartesian 좌표:</span>
             <span className="text-gray-800 font-mono">
               ({cartesianCoords.map((v) => v.toFixed(2)).join(", ")})
             </span>
           </div>
 
-          {/* 그리퍼 상태 (아이콘으로 표현) */}
+          {/* 그리퍼 개방 정도 */}
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">그리퍼 상태:</span>
+            <span className="text-gray-700 font-medium">그리퍼 개방 정도:</span>
             <div className="flex items-center space-x-2 text-sm">
-              {gripperStatus === "Open" ? (
-                <>
-                  <GripHorizontal className="text-blue-600 w-4 h-4" />
-                  <span className="text-gray-700">열림</span>
-                </>
-              ) : (
-                <>
-                  <GripVertical className="text-gray-700 w-4 h-4" />
-                  <span className="text-gray-700">닫힘</span>
-                </>
-              )}
+              <GripHorizontal className="text-blue-600 w-4 h-4" />
+              <span className="text-gray-700 font-mono">
+                {gripperOpening.toFixed(1)} mm
+              </span>
             </div>
           </div>
+
         </div>
       </div>
     </div>

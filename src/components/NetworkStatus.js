@@ -7,30 +7,54 @@ function CommunicationInfo({
   camera2Latency = 0.0,
   logs = [],
 }) {
+  const getFpsColor = (fps) => {
+    if (fps === 0) return "text-red-600";
+    if (fps < 15) return "text-yellow-500";
+    return "text-green-600";
+  };
+
+  const getLatencyColor = (latency) => {
+    if (latency <= 180) return "text-green-600";
+    if (latency <= 220) return "text-yellow-500";
+    return "text-red-600";
+  };
+
+  const getFpsBgColor = (fps) => {
+    if (fps === 0) return "bg-red-100";
+    if (fps < 15) return "bg-yellow-100";
+    return "bg-green-100";
+  };
+
+  const getLatencyBgColor = (latency) => {
+    if (latency <= 180) return "bg-green-100";
+    if (latency <= 220) return "bg-yellow-100";
+    return "bg-red-100";
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 max-w-full mx-auto border border-gray-200">
       <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">통신 정보</h2>
 
       {/* 통신 수치 정보 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex justify-between items-center p-3 bg-blue-50 border border-gray-200 rounded-lg">
+        <div className={`flex justify-between items-center p-3 border border-gray-200 rounded-lg ${getFpsBgColor(camera1Fps)}`}>
           <span className="text-gray-700 font-medium">카메라1 FPS:</span>
-          <span className="text-gray-800 font-mono ml-auto">{camera1Fps.toFixed(1)} fps</span>
+          <span className={`font-mono ml-auto ${getFpsColor(camera1Fps)}`}>{camera1Fps.toFixed(1)} fps</span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-blue-50 border border-gray-200 rounded-lg">
+        <div className={`flex justify-between items-center p-3 border border-gray-200 rounded-lg ${getFpsBgColor(camera2Fps)}`}>
           <span className="text-gray-700 font-medium">카메라2 FPS:</span>
-          <span className="text-gray-800 font-mono ml-auto">{camera2Fps.toFixed(1)} fps</span>
+          <span className={`font-mono ml-auto ${getFpsColor(camera2Fps)}`}>{camera2Fps.toFixed(1)} fps</span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-blue-50 border border-gray-200 rounded-lg">
+        <div className={`flex justify-between items-center p-3 border border-gray-200 rounded-lg ${getLatencyBgColor(camera1Latency)}`}>
           <span className="text-gray-700 font-medium">카메라1 지연시간:</span>
-          <span className="text-gray-800 font-mono ml-auto">{camera1Latency.toFixed(1)} ms</span>
+          <span className={`font-mono ml-auto ${getLatencyColor(camera1Latency)}`}>{camera1Latency.toFixed(1)} ms</span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-blue-50 border border-gray-200 rounded-lg">
+        <div className={`flex justify-between items-center p-3 border border-gray-200 rounded-lg ${getLatencyBgColor(camera2Latency)}`}>
           <span className="text-gray-700 font-medium">카메라2 지연시간:</span>
-          <span className="text-gray-800 font-mono ml-auto">{camera2Latency.toFixed(1)} ms</span>
+          <span className={`font-mono ml-auto ${getLatencyColor(camera2Latency)}`}>{camera2Latency.toFixed(1)} ms</span>
         </div>
       </div>
 

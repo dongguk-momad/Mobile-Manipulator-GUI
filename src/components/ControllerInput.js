@@ -133,14 +133,14 @@ function Joystick({
             <p className="absolute left-1/2 bottom-1 transform -translate-x-1/2 text-sm font-mono">{angle}°</p>
           </div>
 
-          <input
+          {/* <input
             type="range"
             min={-180}
             max={180}
             value={angle}
             onChange={(e) => onAngleChange(Number(e.target.value))}
             className="mt-4 w-full"
-          />
+          /> */}
         </div>
 
         {/* 기어 상태 */}

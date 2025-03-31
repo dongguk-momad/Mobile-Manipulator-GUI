@@ -1,15 +1,31 @@
 import React, { useState } from "react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
+
 
 function SensorInfo({
   forceValues = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }) {
+  const [viewMode, setViewMode] = useState("text"); // "text" or "graph"
+
+  const handleModeChange = (e) => {
+    setViewMode(e.target.value);
+  };
+
+  const forceData = forceValues.map((value, index) => ({
+    axis: `F${index + 1}`,
+    value: parseFloat(value.toFixed(2)),
+  }));
+
   // Camera source options
   const cameraOptions = [
-    { id: "camera1_rgb", label: "카메라1 RGB", src: "/images/camera1.jpg" },
-    { id: "camera1_depth", label: "카메라1 Depth", src: "/images/camera1_depth.jpg" },
-    { id: "camera2_rgb", label: "카메라2 RGB", src: "/images/camera2.jpg" },
-    { id: "camera2_depth", label: "카메라2 Depth", src: "/images/camera2_depth.jpg" },
+    { id: "camera1_rgb", label: "카메라1 RGB", src: "http://localhost:8081/stream1" },
+    { id: "camera1_depth", label: "카메라1 Depth", src: "http://localhost:8081/stream2" },
+    { id: "camera2_rgb", label: "카메라2 RGB", src: "http://localhost:8081/stream3" },
+    { id: "camera2_depth", label: "카메라2 Depth", src: "http://localhost:8081/stream4" },
   ];
+  
 
   // Default selected cameras
   const [camera1Source, setCamera1Source] = useState(cameraOptions[0]);
@@ -77,9 +93,21 @@ function SensorInfo({
           </div>
         </div>
 
-        {/* Force 센서 */}
-        <div className="mt-4 pt-3 border-t border-gray-100">
-          <p className="text-gray-700 font-medium mb-2">6축 Force 센서:</p>
+        {/* Force 센서 표시 방식 선택 */}
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-gray-700 font-medium">6축 Force 센서:</p>
+          <select
+            value={viewMode}
+            onChange={handleModeChange}
+            className="text-sm border rounded-md py-1 px-2 bg-gray-50"
+          >
+            <option value="text">텍스트</option>
+            <option value="graph">그래프</option>
+          </select>
+        </div>
+
+        {/* 표시 방식 분기 */}
+        {viewMode === "text" ? (
           <div className="grid grid-cols-3 gap-2">
             {forceValues.map((value, index) => (
               <div
@@ -90,7 +118,19 @@ function SensorInfo({
               </div>
             ))}
           </div>
-        </div>
+        ) : (
+          <div className="w-full h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={forceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="axis" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );
