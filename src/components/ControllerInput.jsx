@@ -130,7 +130,7 @@ function Joystick({
                 left: `calc(50% + ${x}px)`,
               }}
             ></div>
-            <p className="absolute left-1/2 bottom-1 transform -translate-x-1/2 text-sm font-mono">{angle}°</p>
+            <p className="absolute left-1/2 bottom-1 transform -translate-x-1/2 text-sm font-mono">{angle.toFixed(1)}°</p>
           </div>
 
           {/* <input
