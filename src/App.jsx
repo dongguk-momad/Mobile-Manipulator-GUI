@@ -40,14 +40,24 @@ function App() {
     const wsData = new WebSocket(`${baseWsUrl}/ws/data`);
     const wsImage = new WebSocket(`${baseWsUrl}/ws/image`);
   
+    // wsImage.onmessage = (event) => {
+    //   try {
+    //     const data = JSON.parse(event.data);
+    //     setCameraImages((prev) => ({ ...prev, [data.camera_id]: data.image }));
+    //   } catch (err) {
+    //     console.error("Image WebSocket error:", err);
+    //   }
+    // };
     wsImage.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        setCameraImages((prev) => ({ ...prev, [data.camera_id]: data.image }));
+        if (data.images) {
+          setCameraImages((prev) => ({ ...prev, ...data.images }));
+        }
       } catch (err) {
         console.error("Image WebSocket error:", err);
       }
-    };
+    };    
   
     wsData.onmessage = (event) => {
       try {

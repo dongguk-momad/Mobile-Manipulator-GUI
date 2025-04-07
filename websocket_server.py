@@ -7,6 +7,7 @@ import random
 import threading
 import cv2
 import base64
+import time
 
 app = FastAPI()
 
@@ -81,15 +82,29 @@ def webcam_loop():
         if not success:
             continue
 
-        _, buffer = cv2.imencode(".jpg", frame)
-        encoded = base64.b64encode(buffer).decode("utf-8")
+        frame = cv2.resize(frame, (640, 480))  # 예: 640x480
+        h, w, _ = frame.shape
+        mid_h, mid_w = h // 2, w // 2
 
-        latest_frame = {
-            "camera_id": "camera1_rgb",
-            "image": f"data:image/jpeg;base64,{encoded}"
+        quadrants = {
+            "camera1_rgb": frame[0:mid_h, 0:mid_w],
+            "camera1_depth": frame[0:mid_h, mid_w:w],
+            "camera2_rgb": frame[mid_h:h, 0:mid_w],
+            "camera2_depth": frame[mid_h:h, mid_w:w],
         }
 
-        cv2.waitKey(50)
+        encoded_images = {}
+        for cam_id, img in quadrants.items():
+            resized = cv2.resize(img, (320, 240))  # 선택적으로 리사이즈
+            _, buffer = cv2.imencode(".jpg", resized, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+            encoded = base64.b64encode(buffer).decode("utf-8")
+            encoded_images[cam_id] = f"data:image/jpeg;base64,{encoded}"
 
+        # ✅ 한꺼번에 WebSocket으로 보내기 위해 묶어 저장
+        latest_frame = {
+            "images": encoded_images
+        }
+
+        time.sleep(0.05)  # 20fps
 # ---------- 웹캠 백그라운드 시작 ----------
 threading.Thread(target=webcam_loop, daemon=True).start()
