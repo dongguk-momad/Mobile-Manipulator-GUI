@@ -6,6 +6,10 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 
 In the project directory, you can run:
 
+### `uvicorn websocket_server:app --host 0.0.0.0 --port 8000 --reload`
+
+Runs the app with uvicorn.\
+
 ### `npm start`
 
 Runs the app in the development mode.\
