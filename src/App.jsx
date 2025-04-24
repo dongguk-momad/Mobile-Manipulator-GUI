@@ -67,10 +67,8 @@ function App() {
         if (data.speed !== undefined) setSpeed(data.speed);
         if (data.steering_angle !== undefined) setSteeringAngle(data.steering_angle);
         if (data.gripper_opening !== undefined) setGripperOpening(data.gripper_opening);
-        if (data.joint_angles) {
-          setJointAngles(data.joint_angles);
-          setMasterJointValues(data.joint_angles);
-        }
+        if (data.joint_angles !== undefined) setJointAngles(data.joint_angles);
+        if (data.master_joint_values !== undefined) setMasterJointValues(data.joint_angles);
         if (data.angle !== undefined) setAngle(data.angle);
         if (data.accel !== undefined) setAccel(data.accel);
         if (data.brake !== undefined) setBrake(data.brake);

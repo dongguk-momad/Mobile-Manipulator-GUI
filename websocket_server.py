@@ -39,6 +39,7 @@ sensor_data = {
     "steering_angle": 0.0,
     "gripper_opening": 0.0,
     "joint_angles": [0.0] * 6,
+    "master_joint_values": [0.0] * 6,
     "force_sensor": [0.0] * 6,
     "angle": 0.0,
     "accel": 0,
@@ -60,8 +61,11 @@ def force_callback(msg):
     with sensor_data_lock:
         sensor_data["force_sensor"] = list(msg.data)
 
+array_publisher = None
+
 # ---------- ROS2 노드 스레드 ----------
 def ros2_node_spin():
+    global array_publisher
     rclpy.init()
     node = rclpy.create_node("web_bridge")
 
@@ -69,11 +73,28 @@ def ros2_node_spin():
     node.create_subscription(JointState, "/joint_states", joint_callback, 10)
     node.create_subscription(Float32MultiArray, "/force_sensor", force_callback, 10)
 
+    array_publisher = node.create_publisher(Float32MultiArray, "/master_joint_values", 10)
+
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 
 threading.Thread(target=ros2_node_spin, daemon=True).start()
+
+# ---------- WebSocket: Controller input ----------
+@app.websocket("/ws/control")
+async def websocket_control(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            with sensor_data_lock:
+                msg = await websocket.receive_json()
+                sensor_data["master_joint_values"] = list(msg["master_joint_values"])
+                print(sensor_data["master_joint_values"])
+                array_publisher.publish(Float32MultiArray(data=sensor_data["master_joint_values"]))
+            await asyncio.sleep(0.05)  # 20Hz
+    except Exception as e:
+        print("\u274c 데이터 WebSocket 연결 종료:", e)
 
 # ---------- WebSocket: 센서 데이터 ----------
 @app.websocket("/ws/data")
