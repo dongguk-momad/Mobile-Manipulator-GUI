@@ -7,10 +7,10 @@ function SensorInfo({ forceValues = [0, 0, 0, 0, 0, 0], cameraImages = {} }) {
   const [viewMode, setViewMode] = useState("text");
 
   const cameraOptions = [
-    { id: "camera1_rgb", label: "카메라1 RGB" },
-    { id: "camera1_depth", label: "카메라1 Depth" },
-    { id: "camera2_rgb", label: "카메라2 RGB" },
-    { id: "camera2_depth", label: "카메라2 Depth" },
+    { id: "mobile_rgb", label: "카메라1 RGB" },
+    { id: "mobile_depth", label: "카메라1 Depth" },
+    { id: "hand_rgb", label: "카메라2 RGB" },
+    { id: "hand_depth", label: "카메라2 Depth" },
   ];
 
   const [camera1Source, setCamera1Source] = useState(cameraOptions[0]);
