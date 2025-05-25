@@ -4,17 +4,17 @@ import SensorInfo from "./components/SensorInfo";
 import ControllerInput from "./components/ControllerInput";
 import ControlButtons from "./components/ControlButtons";
 import NetworkStatus from "./components/NetworkStatus";
-import ArmVisualizer from "./components/ArmVisualizer";
 import ArmComparison3DVisualizer from "./components/ArmComparison3DVisualizer";
+import { add } from "three/tsl";
 
 function App() {
   const [controlView, setControlView] = useState("joystick");
   const [robotStatus, setRobotStatus] = useState("E-STOP");
-  const [speed, setSpeed] = useState(0);
-  const [steeringAngle, setSteeringAngle] = useState(0);
+  const [speed, setLinearSpeed] = useState(0);
+  const [steeringAngle, setAngularSpeed] = useState(0);
   const [battery, setBattery] = useState(85);
   const [jointAngles, setJointAngles] = useState([0, 0, 0, 0, 0, 0]);
-  const [cartesianCoords, setCartesianCoords] = useState([1.5, 2.3, 0.8, 1.5, 2.3, 0.8]);
+  const [cartesianCoords, setCartesianPosition] = useState([0, 0, 0, 0, 0, 0]);
   const [gripperOpening, setGripperOpening] = useState(30.0);
   const [forceSensorValues, setForceSensorValues] = useState([0, 0, 0, 0, 0, 0]);
   const [cameraImages, setCameraImages] = useState({});
@@ -64,15 +64,22 @@ function App() {
         const data = JSON.parse(event.data);
         if (data.force_sensor) setForceSensorValues(data.force_sensor);
         if (data.battery !== undefined) setBattery(data.battery);
-        if (data.speed !== undefined) setSpeed(data.speed);
-        if (data.steering_angle !== undefined) setSteeringAngle(data.steering_angle);
+        if (data.linear_speed !== undefined) setLinearSpeed(data.linear_speed);
+        if (data.angular_speed !== undefined) setAngularSpeed(data.angular_speed);
         if (data.gripper_opening !== undefined) setGripperOpening(data.gripper_opening);
         if (data.joint_angles !== undefined) setJointAngles(data.joint_angles);
-        if (data.master_joint_values !== undefined) setMasterJointValues(data.joint_angles);
+        if (data.master_joint_angles !== undefined) setMasterJointValues(data.master_joint_angles);
         if (data.angle !== undefined) setAngle(data.angle);
         if (data.accel !== undefined) setAccel(data.accel);
         if (data.brake !== undefined) setBrake(data.brake);
-        if (data.gear_status) setGearStatus(data.gear_status);
+        if (data.gear_status !== undefined) setGearStatus(data.gear_status);
+        if (data.cartesian_position !== undefined) setCartesianPosition(data.cartesian_position);
+        if (data.robot_status !== undefined) setRobotStatus(data.robot_status);
+        if (data.camera1_fps !== undefined) setCamera1Fps(data.camera1_fps);
+        if (data.camera2_fps !== undefined) setCamera2Fps(data.camera2_fps);
+        if (data.camera1_latency !== undefined) setCamera1Latency(data.camera1_latency);
+        if (data.camera2_latency !== undefined) setCamera2Latency(data.camera2_latency);
+        if (data.log !== undefined) addLog(data.log);
   
         addLog("ROS 메시지 수신됨");
       } catch (err) {
@@ -89,7 +96,7 @@ function App() {
   return (
     <div className="bg-gray-100 min-h-screen p-6">
       <h1 className="text-3xl font-semibold text-center text-gray-800 mb-8">
-        모바일 매니퓰레이터 GUI
+        Mobile Manipulator Driver
       </h1>
 
       <div className="flex flex-col lg:flex-row gap-6 mb-6 w-full">
@@ -113,9 +120,8 @@ function App() {
                 onChange={(e) => setControlView(e.target.value)}
                 className="text-sm border rounded-md py-1 px-2 bg-gray-50"
               >
-                <option value="joystick">조종기 인풋</option>
-                <option value="arm">로봇팔 시각화</option>
-                <option value="compare">마스터/슬레이브 비교</option>
+                <option value="joystick">Controller Input</option>
+                <option value="compare">Master vs Slave</option>
               </select>
             </div>
             <div className="flex-1 flex items-stretch">
@@ -128,8 +134,6 @@ function App() {
                   gearStatus={gearStatus}
                   jointValues={masterJointValues}
                 />
-              ) : controlView === "arm" ? (
-                <ArmVisualizer jointAngles={masterJointValues} />
               ) : (
                 <ArmComparison3DVisualizer
                   masterJointAngles={masterJointValues}

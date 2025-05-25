@@ -8,7 +8,7 @@ function ControlButtons({
 }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 w-full h-full border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">조종 버튼</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Robot State Button</h2>
 
       <div className="space-y-4">
         <button

@@ -77,15 +77,15 @@ function Joystick({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 w-full h-full border border-gray-200">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">조종기 인풋</h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Controller Input</h2>
 
       <div className="space-y-4">
         {/* 페달 */}
         <div>
-          <p className="text-gray-700 font-medium mb-2">페달 입력:</p>
+          <p className="text-gray-700 font-medium mb-2">Pedal Input:</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-sm text-gray-500 mb-1">가속</p>
+              <p className="text-sm text-gray-500 mb-1">Accel</p>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
                   className="bg-green-500 h-2.5 rounded-full"
@@ -95,7 +95,7 @@ function Joystick({
               <p className="text-right text-xs text-gray-500 mt-1">{accel}%</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 mb-1">감속</p>
+              <p className="text-sm text-gray-500 mb-1">Brake</p>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
                   className="bg-red-500 h-2.5 rounded-full"
@@ -109,7 +109,7 @@ function Joystick({
 
         {/* 조이스틱 시각화 */}
         <div>
-          <p className="text-gray-700 font-medium mb-2">조이스틱 각도:</p>
+          <p className="text-gray-700 font-medium mb-2">Angular Velocity Input:</p>
           <div className="relative w-32 h-32 mx-auto bg-gray-100 rounded-full border border-gray-200">
             <svg className="absolute top-0 left-0 w-full h-full">
               {renderTicks()}
@@ -145,7 +145,7 @@ function Joystick({
 
         {/* 기어 상태 */}
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-          <span className="text-gray-700 font-medium">기어 상태:</span>
+          <span className="text-gray-700 font-medium">Gear:</span>
           <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
             {gearStatus}
           </span>
@@ -153,7 +153,7 @@ function Joystick({
 
         {/* 마스터 로봇팔 조인트 */}
         <div className="mt-4 pt-3 border-t border-gray-100">
-          <p className="text-gray-700 font-medium mb-2">마스터 로봇팔 Joint:</p>
+          <p className="text-gray-700 font-medium mb-2">Master Robotarm Joint Position:</p>
           <div className="grid grid-cols-6 gap-2">
             {jointValues.map((value, index) => (
               <div
