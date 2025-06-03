@@ -202,7 +202,6 @@ class MergedROSNode(Node):
         log_info("MergedROSNode initializing...")
 
         # Publishers
-        self.master_joint_values_pub = self.create_publisher(Float32MultiArray, "/master_joint_values", 10) # From websocket_server_shm.py
         self.master_info_bridge_pub = self.create_publisher(ControlValue, '/master_info', 10) # From server_node.py
 
         # Subscriptions
@@ -328,7 +327,7 @@ async def process_shm_images_loop_thread_func():
 
     node_clock = ros2_node.get_clock()
     expected_cam_keys = list(SHM_CONFIG.keys()) # Use keys from SHM_CONFIG
-    jpeg_quality = 60
+    jpeg_quality = 40
 
     while rclpy.ok():
         if not image_signal_event.wait(timeout=1.0):
@@ -451,7 +450,7 @@ async def websocket_data(websocket: WebSocket):
             with sensor_data_lock:
                 data_to_send = sensor_data.copy()
             await websocket.send_json(data_to_send)
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.05)
     except Exception as e:
         log_warn(f"/ws/data WebSocket connection closed for {websocket.client}: {e}")
     finally:
@@ -465,23 +464,27 @@ async def websocket_image(websocket: WebSocket):
     log_info(f"Client {websocket.client} connected to /ws/image. Total clients: {len(connected_clients_image_ws)}")
     try:
         while True:
-            frame_to_send = None
+            frame_payload_to_send = None # 전송할 최종 페이로드
             with latest_frame_lock:
                 if latest_frame and latest_frame.get("images") and any(latest_frame["images"].values()):
-                    frame_to_send = latest_frame 
+                    # latest_frame을 직접 수정하지 않기 위해 복사본 사용
+                    current_frame_data = latest_frame.copy() 
+                    # 여기에 서버 전송 타임스탬프 추가 (밀리초 단위 UNIX epoch)
+                    current_frame_data["server_send_timestamp_ms"] = int(time.time() * 1000)
+                    frame_payload_to_send = current_frame_data
             
-            if frame_to_send:
-                # log_debug(f"Sending frame to {websocket.client} via /ws/image")
-                await websocket.send_json(frame_to_send)
+            if frame_payload_to_send:
+                await websocket.send_json(frame_payload_to_send)
             else:
-                # log_debug(f"No new image frame to send to {websocket.client} or frame empty.")
-                pass # Avoid logging too frequently if images are slow
+                # 이미지가 없거나 비어있으면 아무것도 보내지 않거나, 빈 메시지를 정의할 수 있음
+                pass 
 
-            await asyncio.sleep(0.01) # Approx 33Hz, adjust based on image processing rate
+            await asyncio.sleep(0.04) # 약 33Hz, 이미지 처리 속도에 따라 조절
     except Exception as e: 
         log_warn(f"/ws/image WebSocket connection closed for {websocket.client}: {e}")
     finally: 
-        connected_clients_image_ws.remove(websocket)
+        if websocket in connected_clients_image_ws: # Check before removing
+            connected_clients_image_ws.remove(websocket)
         log_info(f"Client {websocket.client} disconnected from /ws/image. Total clients: {len(connected_clients_image_ws)}")
 
 
@@ -529,16 +532,16 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             rv_data = data.get("RobotarmValue", {})
             msg.robotarm_state = RobotarmValue(
-                position=np.array(rv_data.get("position", [0.0]*6), dtype=np.float64),
-                velocity=np.array(rv_data.get("velocity", [0.0]*6), dtype=np.float64),
-                force=np.array(rv_data.get("force", [0.0]*6), dtype=np.float64)
+                position=np.array(rv_data.get("position", [0.0]*6), dtype=np.float64).tolist(),
+                velocity=np.array(rv_data.get("velocity", [0.0]*6), dtype=np.float64).tolist(),
+                force=np.array(rv_data.get("force", [0.0]*6), dtype=np.float64).tolist()
             )
 
             gv_data = data.get("GripperValue", {})
             msg.gripper_state = GripperValue(
-                position=np.array(gv_data.get("position", [0.0]*2), dtype=np.float64),
-                velocity=np.array(gv_data.get("velocity", [0.0]*2), dtype=np.float64),
-                force=np.array(gv_data.get("force", [0.0]*2), dtype=np.float64)
+                position=np.array(gv_data.get("position", [0.0]*2), dtype=np.float64).tolist(),
+                velocity=np.array(gv_data.get("velocity", [0.0]*2), dtype=np.float64).tolist(),
+                force=np.array(gv_data.get("force", [0.0]*2), dtype=np.float64).tolist()
             )
 
             mv_data = data.get("MobileValue", {})
@@ -550,7 +553,10 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
             ros2_node.master_info_bridge_pub.publish(msg)
 
             with sensor_data_lock:
-                sensor_data["master_joint_values"] = list(msg.robotarm_state.position)
+                sensor_data["master_joint_angles"] = list(msg.robotarm_state.position)
+                sensor_data["linear_speed"] = msg.mobile_state.linear_velocity
+                sensor_data["angular_speed"] = msg.mobile_state.angular_velocity
+                sensor_data["gear_status"] = "전진" if msg.mobile_state.linear_velocity > 0 else "후진" if msg.mobile_state.linear_velocity < 0 else "중립"
             await asyncio.sleep(0) # Yield control, effectively processing messages as fast as they come
 
         except websockets.exceptions.ConnectionClosedOK:
