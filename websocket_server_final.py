@@ -74,7 +74,7 @@ slave_bridge_data = {
     "stamp": 0.0,
     "RobotarmValue": {"position": [0.0]*6, "velocity": [0.0]*6, "force": [0.0]*6},
     "GripperValue": {"position": [0.0]*2, "velocity": [0.0]*2, "force": [0.0]*2},
-    "MobileValue": {"linear_velocity": 0.0, "angular_velocity": 0.0},
+    "MobileValue": {"linear_accel": 0.0, "linear_brake": 0.0, "steer": 0.0, "gear": True},
 }
 slave_bridge_data_lock = threading.Lock() # Changed from asyncio.Lock to threading.Lock
 
@@ -270,8 +270,8 @@ class MergedROSNode(Node):
         global sensor_data
         with sensor_data_lock:
             sensor_data["battery"] = msg.battery
-            sensor_data["linear_speed"] = msg.linear_velocity
-            sensor_data["angular_speed"] = msg.angular_velocity
+            sensor_data["linear_speed"] = msg.linear_accel
+            sensor_data["angular_speed"] = msg.steer
             sensor_data["gripper_opening"] = msg.gripper_opening
             sensor_data["joint_angles"] = list(msg.joint_angles)
             sensor_data["cartesian_position"] = list(msg.cartesian_position)
@@ -296,8 +296,10 @@ class MergedROSNode(Node):
                     "force":    list(msg.gripper_state.force),
                 },
                 "MobileValue": {
-                    "linear_velocity":   msg.mobile_state.linear_velocity,
-                    "angular_velocity": msg.mobile_state.angular_velocity,
+                    "linear_accel": msg.mobile_state.linear_accel,
+                    "linear_brake": msg.mobile_state.linear_brake,
+                    "steer": msg.mobile_state.steer,
+                    "gear": msg.mobile_state.gear
                 }
             }
         # log_debug(f"Updated slave_bridge_data from /slave_info: stamp {msg.stamp}")
@@ -694,17 +696,19 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             mv_data = data.get("MobileValue", {})
             msg.mobile_state = MobileValue(
-                linear_velocity=float(mv_data.get("linear_velocity", 0.0)),
-                angular_velocity=float(mv_data.get("angular_velocity", 0.0))
+                linear_accel=float(mv_data.get("linear_accel", 0.0)),
+                linear_brake=float(mv_data.get("linear_brake", 0.0)),
+                steer=float(mv_data.get("steer", 0.0)),
+                gear=bool(mv_data.get("gear", True))
             )
             
             ros2_node.master_info_bridge_pub.publish(msg)
 
             with sensor_data_lock:
                 sensor_data["master_joint_angles"] = list(msg.robotarm_state.position)
-                sensor_data["accel"] = msg.mobile_state.linear_velocity # 임시로 accel에 선속도 저장(태은)
-                sensor_data["angle"] = msg.mobile_state.angular_velocity # 임시로 angle에 각속도 저장(태은)
-                sensor_data["gear_status"] = "전진" if msg.mobile_state.linear_velocity > 0 else "후진" if msg.mobile_state.linear_velocity < 0 else "중립"
+                sensor_data["accel"] = msg.mobile_state.linear_accel # 임시로 accel에 선속도 저장(태은)
+                sensor_data["angle"] = msg.mobile_state.steer # 임시로 angle에 각속도 저장(태은)
+                sensor_data["gear_status"] = "전진" if msg.mobile_state.linear_accel > 0 else "후진" if msg.mobile_state.linear_accel < 0 else "중립"
             await asyncio.sleep(0) # Yield control, effectively processing messages as fast as they come
 
         except websockets.exceptions.ConnectionClosedOK:
