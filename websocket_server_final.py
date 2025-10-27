@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from std_msgs.msg import Float32, Float32MultiArray, Header
+from std_msgs.msg import String, Bool
 from sensor_msgs.msg import JointState
 from momad_msgs.msg import ControlValue, GuiValue, RobotarmValue, MobileValue, GripperValue # For the new bridge
 
@@ -52,12 +53,20 @@ async def redirect_to_app():
 # --- Global Data Stores and Locks ---
 # For sensor data from websocket_server_shm.py part
 sensor_data = {
-    "battery": 0.0, "linear_speed": 0.0, "angular_speed": 0.0, "gripper_opening": 0.0,
-    "joint_angles": [0.0] * 6, "master_joint_angles": [0.0] * 6,
-    "force_sensor": [0.0] * 6, "angle": 0.0, "accel": 0, "brake": 0, "gear_status": "중립",
-    "cartesian_position": [0.0] * 6, "camera1_fps": 0.0, "camera2_fps": 0.0,
+    # Robot value
+    "battery": 0.0, "linear_speed": 0.0, "angular_speed": 0.0, 
+    "gripper_opening": 0.0, "joint_angles": [0.0] * 6, 
+    "cartesian_position": [0.0] * 6, "force_sensor": [0.0] * 6, 
+
+    # Controller value
+    "master_joint_angles": [0.0] * 6, "angle": 0.0, "accel": 0, "brake": 0, "gear_status": "중립",
+    
+    # 이제 안씀
+    "camera1_fps": 0.0, "camera2_fps": 0.0,
     "camera1_latency": 0.0, "camera2_latency": 0.0,
 }
+
+
 sensor_data_lock = threading.Lock()
 
 # For the new ROS teleoperation bridge (from server_node.py part)
@@ -69,6 +78,22 @@ slave_bridge_data = {
 }
 slave_bridge_data_lock = threading.Lock() # Changed from asyncio.Lock to threading.Lock
 
+
+dataset_settings = {
+    "robotArm":   {"position": False, "velocity": False, "current": False, "gripper": False},
+    "mobile":     {"linearVelocity": False, "angularVelocity": False, "odom": False},  
+    "sensors":    {"camera1": False, "camera2": False, "lidar": False, "map": False},
+    "HZ": 10,
+    "savePath": ".",
+    "saveTask": "pick_and_place red cube",
+    "fileName": "data_1",
+    "fileFormat": "json"  # New field for file format
+}
+dataset_settings_lock = threading.Lock()
+
+getting_state = False
+getting_state_lock = threading.Lock()
+
 # --- SHM Configuration and Variables ---
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
@@ -77,12 +102,22 @@ RGB_DTYPE = np.uint8
 DEPTH_CHANNELS = 1
 DEPTH_DTYPE = np.float32
 
+# SHM_CONFIG = {
+#     "mobile_rgb": {"name": "shm_mobile_rgb", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
+#     "mobile_depth": {"name": "shm_mobile_depth", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH), "dtype": DEPTH_DTYPE},
+#     "hand_rgb": {"name": "shm_hand_rgb", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
+#     "hand_depth": {"name": "shm_hand_depth", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH), "dtype": DEPTH_DTYPE},
+# }
+
+## 태은 변경 ##
 SHM_CONFIG = {
-    "mobile_rgb": {"name": "shm_mobile_rgb", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
-    "mobile_depth": {"name": "shm_mobile_depth", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH), "dtype": DEPTH_DTYPE},
-    "hand_rgb": {"name": "shm_hand_rgb", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
-    "hand_depth": {"name": "shm_hand_depth", "shape": (IMAGE_HEIGHT, IMAGE_WIDTH), "dtype": DEPTH_DTYPE},
+    "mobile_rgb":   {"name": "shm_mobile_rgb",  "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
+    "mobile_depth": {"name": "shm_mobile_depth","shape": (IMAGE_HEIGHT, IMAGE_WIDTH),               "dtype": DEPTH_DTYPE},
+    "hand_rgb":     {"name": "shm_hand_rgb",    "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
+    "hand_depth":   {"name": "shm_hand_depth",  "shape": (IMAGE_HEIGHT, IMAGE_WIDTH),               "dtype": DEPTH_DTYPE},
+    "map":          {"name": "shm_map",         "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
 }
+
 for key in SHM_CONFIG:
     config_item = SHM_CONFIG[key]
     config_item["size"] = int(np.prod(config_item["shape"]) * np.dtype(config_item["dtype"]).itemsize)
@@ -104,6 +139,7 @@ last_latency_log_time = time.perf_counter()
 latest_frame = {"images": {key: "" for key in SHM_CONFIG.keys()}}
 latest_frame_lock = threading.Lock()
 connected_clients_image_ws = set() # For /ws/image
+
 
 # --- ROS 2 Global Variables ---
 ros2_node: Node = None # Will hold the instance of MergedROSNode
@@ -203,28 +239,23 @@ class MergedROSNode(Node):
 
         # Publishers
         self.master_info_bridge_pub = self.create_publisher(ControlValue, '/master_info', 10) # From server_node.py
-
+        qos = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
+        
+        self.dataset_settings_pub = self.create_publisher(String, '/dataset_settings', qos)
+        self.recording_state_pub = self.create_publisher(String, '/recording_state', 10)
+        
         # Subscriptions
-        self.create_subscription(Header, "/isaac_image_signal", self.image_signal_callback, 10)
-        self.create_subscription(GuiValue, "/isaacsim_to_gui", self.isaacsim_to_gui_callback, 10)
+        self.create_subscription(Header, "/image_signal", self.image_signal_callback, 10) # SHM에 이미지 저장 시 콜백
+        self.create_subscription(GuiValue, "/robot_to_gui", self.robot_to_gui_callback, 10)
         
         # Subscription from server_node.py for the teleop bridge
         self.create_subscription(ControlValue, '/slave_info', self.slave_info_bridge_callback, 10)
         
         log_info("MergedROSNode initialized with publishers and subscribers.")
-
-    def isaacsim_to_gui_callback(self, msg: GuiValue):
-        """Callback for GuiValue messages from Isaac Sim to GUI."""
-        global sensor_data
-        with sensor_data_lock:
-            sensor_data["force_sensor"] = list(msg.force_torque)
-            sensor_data["battery"] = msg.battery
-            sensor_data["linear_speed"] = msg.linear_velocity
-            sensor_data["angular_speed"] = msg.angular_velocity
-            sensor_data["gripper_opening"] = msg.gripper_opening
-            sensor_data["joint_angles"] = list(msg.joint_angles)
-            sensor_data["cartesian_position"] = list(msg.cartesian_position)
-        # log_debug(f"Received GuiValue: {msg}")
 
     def image_signal_callback(self, msg: Header):
         global last_received_signal_stamp_ns, image_signal_event
@@ -233,6 +264,19 @@ class MergedROSNode(Node):
             with signal_stamp_lock:
                 last_received_signal_stamp_ns = (msg.stamp.sec * 1_000_000_000) + msg.stamp.nanosec
             image_signal_event.set()
+            
+    def robot_to_gui_callback(self, msg: GuiValue):
+        """Callback for GuiValue messages from Isaac Sim to GUI."""
+        global sensor_data
+        with sensor_data_lock:
+            sensor_data["battery"] = msg.battery
+            sensor_data["linear_speed"] = msg.linear_velocity
+            sensor_data["angular_speed"] = msg.angular_velocity
+            sensor_data["gripper_opening"] = msg.gripper_opening
+            sensor_data["joint_angles"] = list(msg.joint_angles)
+            sensor_data["cartesian_position"] = list(msg.cartesian_position)
+            sensor_data["force_sensor"] = list(msg.force_torque)            
+        # log_debug(f"Received GuiValue: {msg}")
 
     # Callback from server_node.py for the teleop bridge
     def slave_info_bridge_callback(self, msg: ControlValue):
@@ -258,7 +302,34 @@ class MergedROSNode(Node):
             }
         # log_debug(f"Updated slave_bridge_data from /slave_info: stamp {msg.stamp}")
 
+    def dataset_settings_publish(self, settings_dict: dict):
+        """
+        GUI로부터 받은 dataset_settings(딕셔너리)를 JSON으로 직렬화하여
+        ROS2 토픽('/dataset_settings', std_msgs/String)으로 퍼블리시한다.
+        """
+        try:
+            payload = json.dumps(settings_dict, ensure_ascii=False)
+        except Exception as e:
+            self.get_logger().error(f"Failed to serialize dataset_settings to JSON: {e}")
+            return
 
+        msg = String()
+        msg.data = payload
+        try:
+            self.dataset_settings_pub.publish(msg)
+            self.get_logger().info("Published /dataset_settings")
+        except Exception as e:
+            self.get_logger().error(f"Failed to publish /dataset_settings: {e}")
+
+    def recording_state_publish(self, state):
+        msg = String()
+        msg.data = state
+        try:
+            self.recording_state_pub.publish(msg)
+            self.get_logger().info("Published /recording_state")
+        except Exception as e:
+            self.get_logger().error(f"Failed to publish /recording_state: {e}")
+    
 # --- ROS 2 Spin Function (to be run in a thread) ---
 def ros2_thread_spin():
     global ros2_node
@@ -284,6 +355,81 @@ def ros2_thread_spin():
             ros2_node.destroy_node()
         # rclpy.try_shutdown() will be called in FastAPI shutdown event
         log_info("ROS 2 node spin ended.")
+
+# --- GUI to Server data --- # 
+@app.websocket("/ws/setting")
+async def websocket_save_interval(websocket: WebSocket):
+    global dataset_settings, getting_state
+    await websocket.accept()
+    log_info(f"Client {websocket.client} connected to /ws/setting")
+    try:
+        while True:
+            msg = await websocket.receive_text()
+
+            # JSON only (legacy 제거)
+            try:
+                payload = json.loads(msg)
+            except json.JSONDecodeError:
+                await websocket.send_text("ERROR: Only JSON payloads are supported.")
+                continue
+            msg_type = payload.get("type")
+
+            # === 데이터셋 설정 수신 ===
+            if msg_type == "dataset_setting":
+                with dataset_settings_lock:
+                    dataset_settings.update({
+                        "robotArm":    payload.get("robotArm", dataset_settings["robotArm"]),
+                        "mobile":      payload.get("mobile", dataset_settings["mobile"]),
+                        "sensors":     payload.get("sensors", dataset_settings["sensors"]),
+                        "HZ": payload.get("Hertz", dataset_settings["HZ"]),
+                        "savePath":    payload.get("savePath", dataset_settings["savePath"]),
+                        "saveTask":    payload.get("saveTask", dataset_settings["saveTask"]),
+                        "fileName":    payload.get("fileName", dataset_settings["fileName"]),
+                        "fileFormat":  payload.get("fileFormat", dataset_settings["fileFormat"]),                        
+                    })
+                    local_copy = dict(dataset_settings)  # ROS publish용 스냅샷
+
+                log_info(f"✅ Dataset settings updated: {dataset_settings}")
+
+                # ROS2 퍼블리시
+                if ros2_node:
+                    try:
+                        ros2_node.dataset_settings_publish(local_copy)
+                    except Exception as e:
+                        log_error(f"Failed to publish dataset settings to ROS: {e}")
+                else:
+                    log_warn("ROS node not ready; skipped publishing /dataset_settings")
+
+                await websocket.send_text("ACK: dataset settings updated")
+                continue
+
+            # === recording_state ===
+            elif msg_type in ("start_recording", "save_recording", "discard_recording"):
+                try:
+                    log_info(f"✅ Recording command received: {msg_type}")
+
+                    if ros2_node:
+                        try:
+                            ros2_node.recording_state_publish(msg_type)
+                        except Exception as e:
+                            log_error(f"Failed to publish dataset command to ROS: {e}")
+                    else:
+                        log_warn("ROS node not ready; skipped publishing /dataset_settings")
+
+                    await websocket.send_text(f"ACK: {msg_type}")
+
+                except Exception as e:
+                    await websocket.send_text(f"ERROR: {e}")
+                continue
+            # === 잘못된 type ===
+            else:
+                await websocket.send_text("ERROR: unknown payload type")
+                continue
+
+    except Exception as e:
+        log_warn(f"/ws/setting closed: {e}")
+    finally:
+        log_info(f"Client {websocket.client} disconnected from /ws/setting")
 
 
 # --- Image Processing Loop (to be run in a thread) ---
@@ -366,7 +512,8 @@ async def process_shm_images_loop_thread_func():
                 img_to_encode = None
                 is_depth_image = "depth" in cam_id_key
                 jpeg_bytes = None
-
+                
+                # jpeg로 인코딩
                 if is_depth_image:
                     min_d, max_d = (0.1, 1.0) if "hand_depth" == cam_id_key else (0.1, 2.0)
                     img_cv_float = img_cv.astype(np.float32)
@@ -388,6 +535,7 @@ async def process_shm_images_loop_thread_func():
                         img_to_encode, quality=jpeg_quality, colorspace='RGB', colorsubsampling='420'
                     )
                 
+                # Base64 문자열로 변함
                 encoded_images_this_cycle[cam_id_key] = f"data:image/jpeg;base64,{base64.b64encode(jpeg_bytes).decode('utf-8')}"
                 latency_ns = current_ros_time_total_ns - original_capture_stamp_ns 
                 latencies[cam_id_key].append(latency_ns / 1_000_000) # ms
@@ -440,7 +588,7 @@ async def process_shm_images_loop_thread_func():
     log_info("Exiting process_shm_images_loop as rclpy is not ok.")
 
 
-# --- FastAPI WebSocket Endpoints ---
+# --- FastAPI WebSocket Endpoints --- websocket 경로(/ws/data, /ws/image 등)에 데이터 들어오면 자동 실행
 @app.websocket("/ws/data")
 async def websocket_data(websocket: WebSocket):
     await websocket.accept()
@@ -509,7 +657,7 @@ async def ros_teleop_bridge_send_loop(websocket: WebSocket):
         await asyncio.sleep(0.01) # 100Hz, as in original server_node.py
     log_info(f"ROS Teleop Bridge Send Loop stopped for {websocket.client}")
 
-
+### Slave에게 Master 명령 전달 ###(마)
 async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
     """Receives master commands from WebSocket and publishes to /master_info."""
     log_info(f"ROS Teleop Bridge Recv Loop started for {websocket.client}")
@@ -554,8 +702,8 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             with sensor_data_lock:
                 sensor_data["master_joint_angles"] = list(msg.robotarm_state.position)
-                sensor_data["linear_speed"] = msg.mobile_state.linear_velocity
-                sensor_data["angular_speed"] = msg.mobile_state.angular_velocity
+                sensor_data["accel"] = msg.mobile_state.linear_velocity # 임시로 accel에 선속도 저장(태은)
+                sensor_data["angle"] = msg.mobile_state.angular_velocity # 임시로 angle에 각속도 저장(태은)
                 sensor_data["gear_status"] = "전진" if msg.mobile_state.linear_velocity > 0 else "후진" if msg.mobile_state.linear_velocity < 0 else "중립"
             await asyncio.sleep(0) # Yield control, effectively processing messages as fast as they come
 
