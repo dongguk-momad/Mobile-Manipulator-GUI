@@ -74,7 +74,7 @@ sensor_data_lock = threading.Lock()
 slave_bridge_data = {
     "stamp": 0.0,
     "RobotarmValue": {"position": [0.0]*6, "velocity": [0.0]*6, "force": [0.0]*6},
-    "GripperValue": {"position": [0.0]*2, "velocity": [0.0]*2, "force": [0.0]*2},
+    "GripperValue": {"position": 0.0, "velocity": 0.0, "force": 0.0},
     "MobileValue": {"linear_accel": 0.0, "linear_brake": 0.0, "steer": 0.0, "gear": True},
 }
 slave_bridge_data_lock = threading.Lock() # Changed from asyncio.Lock to threading.Lock
@@ -283,29 +283,30 @@ class MergedROSNode(Node):
     # Callback from server_node.py for the teleop bridge
     def slave_info_bridge_callback(self, msg: ControlValue):
         """'/slave_info' 콜백: 들어온 데이터를 slave_bridge_data에 저장"""
-        # global slave_bridge_data
-        # with slave_bridge_data_lock:
-        #     slave_bridge_data = {
-        #         "stamp": msg.stamp,
-        #         "RobotarmValue": {
-        #             "position": list(msg.robotarm_state.position),
-        #             "velocity": list(msg.robotarm_state.velocity),
-        #             "force":    list(msg.robotarm_state.force),
-        #         },
-        #         "GripperValue": {
-        #             "position": list(msg.gripper_state.position),
-        #             "velocity": list(msg.gripper_state.velocity),
-        #             "force":    list(msg.gripper_state.force),
-        #         },
-        #         "MobileValue": {
-        #             "linear_accel": msg.mobile_state.linear_accel,
-        #             "linear_brake": msg.mobile_state.linear_brake,
-        #             "steer": msg.mobile_state.steer,
-        #             "gear": msg.mobile_state.gear
-        #         }
-        #     }
-        # log_debug(f"Updated slave_bridge_data from /slave_info: stamp {msg.stamp}")
+        global slave_bridge_data
+        with slave_bridge_data_lock:
+            slave_bridge_data = {
+                "stamp": msg.stamp,
+                "RobotarmValue": {
+                    "position": list(msg.robotarm_state.position),
+                    "velocity": list(msg.robotarm_state.velocity),
+                    "force":    list(msg.robotarm_state.force),
+                },
+                "GripperValue": {
+                    "position": list(msg.gripper_state.position),
+                    "velocity": list(msg.gripper_state.velocity),
+                    "force":    list(msg.gripper_state.force),
+                },
+                "MobileValue": {
+                    "linear_accel": msg.mobile_state.linear_accel,
+                    "linear_brake": msg.mobile_state.linear_brake,
+                    "steer": msg.mobile_state.steer,
+                    "gear": msg.mobile_state.gear
+                }
+            }
+        log_debug(f"Updated slave_bridge_data from /slave_info: stamp {msg.stamp}")
         global sensor_data
+        
         with sensor_data_lock:
             sensor_data["robot_status"] = "AUTO"  # 예시로 상태 업데이트
             # sensor_data["battery"] = msg.battery
@@ -496,7 +497,7 @@ async def process_shm_images_loop_thread_func():
 
     node_clock = ros2_node.get_clock()
     expected_cam_keys = list(SHM_CONFIG.keys()) # Use keys from SHM_CONFIG
-    jpeg_quality = 20
+    jpeg_quality = 15
 
     while rclpy.ok():
         if not image_signal_event.wait(timeout=1.0):
@@ -711,9 +712,9 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             gv_data = data.get("GripperValue", {})
             msg.gripper_state = GripperValue(
-                position=np.array(gv_data.get("position", [0.0]*2), dtype=np.float64).tolist(),
-                velocity=np.array(gv_data.get("velocity", [0.0]*2), dtype=np.float64).tolist(),
-                force=np.array(gv_data.get("force", [0.0]*2), dtype=np.float64).tolist()
+                position=float(gv_data.get("position", 0.0)),
+                velocity=float(gv_data.get("velocity", 0.0)),
+                force=float(gv_data.get("force", 0.0))
             )
 
             mv_data = data.get("MobileValue", {})
