@@ -53,8 +53,9 @@ async def redirect_to_app():
 # --- Global Data Stores and Locks ---
 # For sensor data from websocket_server_shm.py part
 sensor_data = {
+    "robot_status": "E-Stop",
     # Robot value
-    "battery": 0.0, "linear_speed": 0.0, "angular_speed": 0.0, 
+    "battery": 82.2, "linear_speed": 0.0, "angular_speed": 0.0, 
     "gripper_opening": 0.0, "joint_angles": [0.0] * 6, 
     "cartesian_position": [0.0] * 6, "force_sensor": [0.0] * 6, 
 
@@ -112,9 +113,9 @@ DEPTH_DTYPE = np.float32
 ## 태은 변경 ##
 SHM_CONFIG = {
     "mobile_rgb":   {"name": "shm_mobile_rgb",  "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
-    "mobile_depth": {"name": "shm_mobile_depth","shape": (IMAGE_HEIGHT, IMAGE_WIDTH),               "dtype": DEPTH_DTYPE},
+    # "mobile_depth": {"name": "shm_mobile_depth","shape": (IMAGE_HEIGHT, IMAGE_WIDTH),               "dtype": DEPTH_DTYPE},
     "hand_rgb":     {"name": "shm_hand_rgb",    "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
-    "hand_depth":   {"name": "shm_hand_depth",  "shape": (IMAGE_HEIGHT, IMAGE_WIDTH),               "dtype": DEPTH_DTYPE},
+    # "hand_depth":   {"name": "shm_hand_depth",  "shape": (IMAGE_HEIGHT, IMAGE_WIDTH),               "dtype": DEPTH_DTYPE},
     "map":          {"name": "shm_map",         "shape": (IMAGE_HEIGHT, IMAGE_WIDTH, RGB_CHANNELS), "dtype": RGB_DTYPE},
 }
 
@@ -251,7 +252,8 @@ class MergedROSNode(Node):
         # Subscriptions
         self.create_subscription(Header, "/image_signal", self.image_signal_callback, 10) # SHM에 이미지 저장 시 콜백
         self.create_subscription(GuiValue, "/robot_to_gui", self.robot_to_gui_callback, 10)
-        
+        self.create_subscription(Float32MultiArray, "/cartesian_position", self.cartesian_callback, 10) # 이후 웹소켓으로 받기
+
         # Subscription from server_node.py for the teleop bridge
         self.create_subscription(ControlValue, '/slave_info', self.slave_info_bridge_callback, 10)
         
@@ -281,28 +283,47 @@ class MergedROSNode(Node):
     # Callback from server_node.py for the teleop bridge
     def slave_info_bridge_callback(self, msg: ControlValue):
         """'/slave_info' 콜백: 들어온 데이터를 slave_bridge_data에 저장"""
-        global slave_bridge_data
-        with slave_bridge_data_lock:
-            slave_bridge_data = {
-                "stamp": msg.stamp,
-                "RobotarmValue": {
-                    "position": list(msg.robotarm_state.position),
-                    "velocity": list(msg.robotarm_state.velocity),
-                    "force":    list(msg.robotarm_state.force),
-                },
-                "GripperValue": {
-                    "position": list(msg.gripper_state.position),
-                    "velocity": list(msg.gripper_state.velocity),
-                    "force":    list(msg.gripper_state.force),
-                },
-                "MobileValue": {
-                    "linear_accel": msg.mobile_state.linear_accel,
-                    "linear_brake": msg.mobile_state.linear_brake,
-                    "steer": msg.mobile_state.steer,
-                    "gear": msg.mobile_state.gear
-                }
-            }
+        # global slave_bridge_data
+        # with slave_bridge_data_lock:
+        #     slave_bridge_data = {
+        #         "stamp": msg.stamp,
+        #         "RobotarmValue": {
+        #             "position": list(msg.robotarm_state.position),
+        #             "velocity": list(msg.robotarm_state.velocity),
+        #             "force":    list(msg.robotarm_state.force),
+        #         },
+        #         "GripperValue": {
+        #             "position": list(msg.gripper_state.position),
+        #             "velocity": list(msg.gripper_state.velocity),
+        #             "force":    list(msg.gripper_state.force),
+        #         },
+        #         "MobileValue": {
+        #             "linear_accel": msg.mobile_state.linear_accel,
+        #             "linear_brake": msg.mobile_state.linear_brake,
+        #             "steer": msg.mobile_state.steer,
+        #             "gear": msg.mobile_state.gear
+        #         }
+        #     }
         # log_debug(f"Updated slave_bridge_data from /slave_info: stamp {msg.stamp}")
+        global sensor_data
+        with sensor_data_lock:
+            sensor_data["robot_status"] = "AUTO"  # 예시로 상태 업데이트
+            # sensor_data["battery"] = msg.battery
+            sensor_data["linear_speed"] = msg.mobile_state.linear_accel
+            sensor_data["angular_speed"] = msg.mobile_state.steer
+            sensor_data["gripper_opening"] = msg.gripper_state.position[0] * 150
+            sensor_data["joint_angles"] = list(msg.robotarm_state.position)
+            # sensor_data["cartesian_position"] = list(msg.cartesian_position)
+            sensor_data["force_sensor"] = list(msg.robotarm_state.force)            
+        # log_debug(f"Received GuiValue: {msg}")
+
+    def cartesian_callback(self, msg: Float32MultiArray):
+        """Cartesian position 콜백 (필요시 사용)"""
+        global sensor_data
+        with sensor_data_lock:
+            sensor_data["cartesian_position"] = list(msg.data)
+        # log_debug(f"Received Cartesian Position: {msg.data}")
+
 
     def dataset_settings_publish(self, settings_dict: dict):
         """
@@ -475,7 +496,7 @@ async def process_shm_images_loop_thread_func():
 
     node_clock = ros2_node.get_clock()
     expected_cam_keys = list(SHM_CONFIG.keys()) # Use keys from SHM_CONFIG
-    jpeg_quality = 40
+    jpeg_quality = 20
 
     while rclpy.ok():
         if not image_signal_event.wait(timeout=1.0):
@@ -517,6 +538,7 @@ async def process_shm_images_loop_thread_func():
                 
                 # jpeg로 인코딩
                 if is_depth_image:
+                    continue
                     min_d, max_d = (0.1, 1.0) if "hand_depth" == cam_id_key else (0.1, 2.0)
                     img_cv_float = img_cv.astype(np.float32)
                     img_cv_float = np.nan_to_num(img_cv_float, nan=max_d, posinf=max_d, neginf=min_d)
@@ -554,33 +576,33 @@ async def process_shm_images_loop_thread_func():
         if all_images_valid_for_this_frame:
              gui_image_processed_count += 1
         
-        current_perf_time = time.perf_counter()
-        elapsed_time_fps = current_perf_time - gui_fps_calc_start_time
-        if elapsed_time_fps >= latency_log_interval:
-            if elapsed_time_fps > 0:
-                actual_fps_gui = gui_image_processed_count / elapsed_time_fps
-                log_info(f"Image Processing FPS (SHM): {actual_fps_gui:.2f} over {elapsed_time_fps:.2f}s")
-                with sensor_data_lock:
-                    if "mobile_rgb" in latest_frame["images"]:
-                        sensor_data["camera1_fps"] = gui_image_processed_count / elapsed_time_fps if elapsed_time_fps > 0 else sensor_data["camera1_fps"]
-                        sensor_data["camera2_fps"] = gui_image_processed_count / elapsed_time_fps if elapsed_time_fps > 0 else sensor_data["camera2_fps"]
+        # current_perf_time = time.perf_counter()
+        # elapsed_time_fps = current_perf_time - gui_fps_calc_start_time
+        # if elapsed_time_fps >= latency_log_interval:
+        #     if elapsed_time_fps > 0:
+        #         actual_fps_gui = gui_image_processed_count / elapsed_time_fps
+        #         log_info(f"Image Processing FPS (SHM): {actual_fps_gui:.2f} over {elapsed_time_fps:.2f}s")
+        #         with sensor_data_lock:
+        #             if "mobile_rgb" in latest_frame["images"]:
+        #                 sensor_data["camera1_fps"] = gui_image_processed_count / elapsed_time_fps if elapsed_time_fps > 0 else sensor_data["camera1_fps"]
+        #                 sensor_data["camera2_fps"] = gui_image_processed_count / elapsed_time_fps if elapsed_time_fps > 0 else sensor_data["camera2_fps"]
 
-            gui_image_processed_count = 0 
-            gui_fps_calc_start_time = current_perf_time 
+        #     gui_image_processed_count = 0 
+        #     gui_fps_calc_start_time = current_perf_time 
 
-        if current_perf_time - last_latency_log_time >= latency_log_interval:
-            log_output_parts = []
-            for cam_id, lat_deque in latencies.items():
-                if lat_deque: avg_lat = sum(lat_deque) / len(lat_deque); log_output_parts.append(f"{cam_id}: {avg_lat:.2f}")
-            if log_output_parts:
-                log_info(f"Average Image Latencies (ms) [ROS Time Based, SHM]: {' | '.join(log_output_parts)}")
-                with sensor_data_lock:
-                    if "hand_rgb" in latest_frame["images"]:
-                        sensor_data["camera1_latency"] = float(np.mean(latencies["mobile_rgb"])) if latencies["mobile_rgb"] else sensor_data["camera1_latency"]
-                        sensor_data["camera2_latency"] = float(np.mean(latencies["hand_rgb"])) if latencies["hand_rgb"] else sensor_data["camera2_latency"]
+        # if current_perf_time - last_latency_log_time >= latency_log_interval:
+        #     log_output_parts = []
+        #     for cam_id, lat_deque in latencies.items():
+        #         if lat_deque: avg_lat = sum(lat_deque) / len(lat_deque); log_output_parts.append(f"{cam_id}: {avg_lat:.2f}")
+        #     if log_output_parts:
+        #         log_info(f"Average Image Latencies (ms) [ROS Time Based, SHM]: {' | '.join(log_output_parts)}")
+        #         with sensor_data_lock:
+        #             if "hand_rgb" in latest_frame["images"]:
+        #                 sensor_data["camera1_latency"] = float(np.mean(latencies["mobile_rgb"])) if latencies["mobile_rgb"] else sensor_data["camera1_latency"]
+        #                 sensor_data["camera2_latency"] = float(np.mean(latencies["hand_rgb"])) if latencies["hand_rgb"] else sensor_data["camera2_latency"]
 
-            else: log_debug("No latency data for SHM processing in this interval.")
-            last_latency_log_time = current_perf_time
+        #     else: log_debug("No latency data for SHM processing in this interval.")
+        #     last_latency_log_time = current_perf_time
         
             
 
