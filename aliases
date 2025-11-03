@@ -1,2 +1,5 @@
 alias ws='cd ~/ros2_ws/src/Mobile-Manipulator-GUI && uvicorn websocket_server_final:app --host 0.0.0.0 --port 8000 --reload'
 alias nb='cd ~/ros2_ws/src/Mobile-Manipulator-GUI && npm run build'
+
+상훈 tailscale 주소
+http://100.109.139.100:8000
