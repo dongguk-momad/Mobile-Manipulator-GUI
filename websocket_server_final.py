@@ -239,7 +239,7 @@ class MergedROSNode(Node):
         log_info("MergedROSNode initializing...")
 
         # Publishers
-        self.master_info_bridge_pub = self.create_publisher(ControlValue, '/master_info_to_kinova', 10) # From server_node.py
+        self.master_info_bridge_pub = self.create_publisher(ControlValue, '/master_info_to_robot', 10) # From server_node.py
         qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             history=HistoryPolicy.KEEP_LAST,
@@ -729,8 +729,8 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             with sensor_data_lock:
                 sensor_data["master_joint_angles"] = list(msg.robotarm_state.position)
-                sensor_data["accel"] = msg.mobile_state.linear_accel
-                sensor_data["brake"] = msg.mobile_state.linear_brake
+                sensor_data["accel"] = msg.mobile_state.linear_accel*100
+                sensor_data["brake"] = msg.mobile_state.linear_brake*100
                 sensor_data["angle"] = msg.mobile_state.steer*90 # 임시로 angle에 각속도 저장(태은)
                 
                 sensor_data["gear_status"] = "전진" if msg.mobile_state.linear_accel > 0 else "후진" if msg.mobile_state.linear_accel < 0 else "중립"
