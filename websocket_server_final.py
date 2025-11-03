@@ -239,7 +239,7 @@ class MergedROSNode(Node):
         log_info("MergedROSNode initializing...")
 
         # Publishers
-        self.master_info_bridge_pub = self.create_publisher(ControlValue, '/master_info', 10) # From server_node.py
+        self.master_info_bridge_pub = self.create_publisher(ControlValue, '/master_info_to_kinova', 10) # From server_node.py
         qos = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             history=HistoryPolicy.KEEP_LAST,
@@ -293,9 +293,9 @@ class MergedROSNode(Node):
                     "force":    list(msg.robotarm_state.force),
                 },
                 "GripperValue": {
-                    "position": list(msg.gripper_state.position),
-                    "velocity": list(msg.gripper_state.velocity),
-                    "force":    list(msg.gripper_state.force),
+                    "position": msg.gripper_state.position,
+                    "velocity": msg.gripper_state.velocity,
+                    "force":    msg.gripper_state.force,
                 },
                 "MobileValue": {
                     "linear_accel": msg.mobile_state.linear_accel,
@@ -312,7 +312,7 @@ class MergedROSNode(Node):
             # sensor_data["battery"] = msg.battery
             sensor_data["linear_speed"] = msg.mobile_state.linear_accel
             sensor_data["angular_speed"] = msg.mobile_state.steer
-            sensor_data["gripper_opening"] = msg.gripper_state.position[0] * 150
+            sensor_data["gripper_opening"] = msg.gripper_state.position * 150
             sensor_data["joint_angles"] = list(msg.robotarm_state.position)
             # sensor_data["cartesian_position"] = list(msg.cartesian_position)
             sensor_data["force_sensor"] = list(msg.robotarm_state.force)            
@@ -729,8 +729,10 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             with sensor_data_lock:
                 sensor_data["master_joint_angles"] = list(msg.robotarm_state.position)
-                sensor_data["accel"] = msg.mobile_state.linear_accel # 임시로 accel에 선속도 저장(태은)
-                sensor_data["angle"] = msg.mobile_state.steer # 임시로 angle에 각속도 저장(태은)
+                sensor_data["accel"] = msg.mobile_state.linear_accel
+                sensor_data["brake"] = msg.mobile_state.linear_brake
+                sensor_data["angle"] = msg.mobile_state.steer*90 # 임시로 angle에 각속도 저장(태은)
+                
                 sensor_data["gear_status"] = "전진" if msg.mobile_state.linear_accel > 0 else "후진" if msg.mobile_state.linear_accel < 0 else "중립"
             await asyncio.sleep(0) # Yield control, effectively processing messages as fast as they come
 
