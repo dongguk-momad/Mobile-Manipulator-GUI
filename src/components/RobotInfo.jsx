@@ -31,21 +31,21 @@ function RobotInfo({
 
       <div className="space-y-3">
         {/* === 모바일로봇 상태 === */}
-        <div className="pt-3 mt-4 border-t border-gray-100 space-y-3">
-          <h3 className="text-lg font-semibold text-gray-800">Mobile Robot</h3>
+        <div className="pt-3 mt-4 border-t border-gray-300 space-y-3">
+          <h3 className="text-xl font-semibold text-gray-800">Mobile Robot</h3>
 
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Linear Velocity:</span>
-            <span className="text-gray-800 font-mono">{speed.toFixed(2)} m/s</span>
+            <span className="text-lg text-gray-800 font-medium">Linear Velocity:</span>
+            <span className="text-lg text-gray-800 font-mono">{speed.toFixed(2)} m/s</span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Angular Velocity:</span>
-            <span className="text-gray-800 font-mono">{steeringAngle.toFixed(2)} rad/s</span>
+            <span className="text-lg text-gray-800 font-medium">Angular Velocity:</span>
+            <span className="text-lg text-gray-800 font-mono">{steeringAngle.toFixed(2)} rad/s</span>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Battery:</span>
+            <span className="text-lg text-gray-800 font-medium">Battery:</span>
             <div className="flex items-center">
               <div className="w-24 bg-gray-200 rounded-full h-2.5 mr-2">
                 <div
@@ -53,7 +53,7 @@ function RobotInfo({
                   style={{ width: `${battery}%` }}
                 />
               </div>
-              <span className={`font-medium ${getBatteryColor(battery)}`}>
+              <span className={`text-lg font-medium ${getBatteryColor(battery)}`}>
                 {battery.toFixed(1)}%
               </span>
             </div>
@@ -62,38 +62,39 @@ function RobotInfo({
 
         {/* === 로봇팔 상태 === */}
         <div className="pt-3 mt-4 border-t border-gray-100 space-y-3">
-          <h3 className="text-lg font-semibold text-gray-800">Robot Arm</h3>
+          <h3 className="text-xl font-semibold text-gray-800">Robot Arm</h3>
 
           {/* 조인트 각도 */}
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Joint Position:</span>
-            <span className="text-gray-800 font-mono">
+            <span className="text-lg text-gray-800 font-medium">Joint Position:</span>
+            <span className="text-lg text-gray-800 font-mono">
               [{jointAngles.map((a) => `${a.toFixed(1)}°`).join(", ")}]
             </span>
           </div>
 
           {/* 데카르트 좌표 */}
+          {/* 1104 태은 수정
           <div className="flex items-center justify-between">
             <span className="text-gray-700 font-medium">Cartesian Position:</span>
             <span className="text-gray-800 font-mono">
               ({cartesianCoords.map((v) => v.toFixed(2)).join(", ")})
             </span>
-          </div>
+          </div> */}
 
           {/* ✅ 추가: Joint Current */}
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Joint Current:</span>
-            <span className="text-gray-800 font-mono">
+            <span className="text-lg text-gray-800 font-medium">Joint Current:</span>
+            <span className="text-lg text-gray-800 font-mono">
               [{jointCurrents.map((c) => c.toFixed(2)).join(", ")}]
             </span>
           </div>
 
           {/* 그리퍼 */}
           <div className="flex items-center justify-between">
-            <span className="text-gray-700 font-medium">Gripper Opening:</span>
+            <span className="text-lg text-gray-800 font-medium">Gripper Opening:</span>
             <div className="flex items-center space-x-2 text-sm">
               <GripHorizontal className="text-blue-600 w-4 h-4" />
-              <span className="text-gray-700 font-mono">
+              <span className="text-lg text-gray-800 font-mono">
                 {gripperOpening.toFixed(1)} mm
               </span>
             </div>
