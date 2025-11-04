@@ -56,7 +56,7 @@ sensor_data = {
     "robot_status": "E-Stop",
     # Robot value
     "battery": 82.2, "linear_speed": 0.0, "angular_speed": 0.0, 
-    "gripper_opening": 0.0, "joint_angles": [0.0] * 6, 
+    "gripper_opening": 0.0, "joint_angles": [0.0, 0.0, 90.0, 90.0, 90.0, 90.0], 
     "cartesian_position": [0.0] * 6, "force_sensor": [0.0] * 6, 
 
     # Controller value
@@ -73,7 +73,7 @@ sensor_data_lock = threading.Lock()
 # For the new ROS teleoperation bridge (from server_node.py part)
 slave_bridge_data = {
     "stamp": 0.0,
-    "RobotarmValue": {"position": [0.0]*6, "velocity": [0.0]*6, "force": [0.0]*6},
+    "RobotarmValue": {"position": [0.0, 0.0, 90.0, 90.0, 90.0, 90.0], "velocity": [0.0]*6, "force": [0.0]*6},
     "GripperValue": {"position": 0.0, "velocity": 0.0, "force": 0.0},
     "MobileValue": {"linear_accel": 0.0, "linear_brake": 0.0, "steer": 0.0, "gear": True},
 }
@@ -705,7 +705,7 @@ async def ros_teleop_bridge_recv_loop(websocket: WebSocket):
 
             rv_data = data.get("RobotarmValue", {})
             msg.robotarm_state = RobotarmValue(
-                position=np.array(rv_data.get("position", [0.0]*6), dtype=np.float64).tolist(),
+                position=np.array(rv_data.get("position", [0.0, 0.0, 90.0, 90.0, 90.0, 90.0]), dtype=np.float64).tolist(),
                 velocity=np.array(rv_data.get("velocity", [0.0]*6), dtype=np.float64).tolist(),
                 force=np.array(rv_data.get("force", [0.0]*6), dtype=np.float64).tolist()
             )
