@@ -55,7 +55,7 @@ async def redirect_to_app():
 sensor_data = {
     "robot_status": "E-Stop",
     # Robot value
-    "battery": 82.2, "linear_speed": 0.0, "angular_speed": 0.0, 
+    "battery": 32, "linear_speed": 0.0, "angular_speed": 0.0, 
     "gripper_opening": 0.0, "joint_angles": [0.0, 0.0, 90.0, 90.0, 90.0, 90.0], 
     "cartesian_position": [0.0] * 6, "force_sensor": [0.0] * 6, 
 
@@ -312,7 +312,7 @@ class MergedROSNode(Node):
             # sensor_data["battery"] = msg.battery
             sensor_data["linear_speed"] = msg.mobile_state.linear_accel
             sensor_data["angular_speed"] = msg.mobile_state.steer
-            sensor_data["gripper_opening"] = msg.gripper_state.position * 150
+            sensor_data["gripper_opening"] = np.clip((100.0 - msg.gripper_state.position)*1.5, 0.0, 150.0)  # 예시 변환
             sensor_data["joint_angles"] = list(msg.robotarm_state.position)
             # sensor_data["cartesian_position"] = list(msg.cartesian_position)
             sensor_data["force_sensor"] = list(msg.robotarm_state.force)            
