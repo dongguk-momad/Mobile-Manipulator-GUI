@@ -404,7 +404,7 @@ export default function SettingInfo() {
           </button>
 
           {/* 우측: Recording 영역 (6) */}
-          <div className="flex-[6] -mt-2">
+          <div className="flex-[6]">
             {!collecting ? (
               // === 기본 상태: Recording start ===
               <button
