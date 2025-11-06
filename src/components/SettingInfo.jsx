@@ -43,7 +43,7 @@ export default function SettingInfo() {
   const [Hertz, setHertz] = useState("");
   const [savePath, setSavePath] = useState("");
   const [saveTask, setsaveTask] = useState("");
-
+  const [robotSize, setRobotSize] = useState("");
   const [fileName, setFileName] = useState("");
   const [fileFormat, setFileFormat] = useState("json");
 
@@ -192,7 +192,7 @@ export default function SettingInfo() {
       </div>
 
       {/* 본문: 좌우 2컬럼 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[5.4fr_4.6fr] gap-4">
         {/* === Left: 토글 섹션들 === */}
         <div className="space-y-6">
           {/* Robot arm */}
@@ -278,10 +278,10 @@ export default function SettingInfo() {
         </div>
 
         {/* === Right: 저장 설정 === */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Data save period */}
           {/* === Data Save Settings (통합 섹션) === */}
-          <section className="space-y-3">
+          <section className="space-y-2">
             <h3 className="text-lg font-semibold text-gray-800">Data Save Settings</h3>
 
             {/* 1행: Save Path (7) | Save Hz (3) */}
@@ -296,7 +296,7 @@ export default function SettingInfo() {
                   placeholder="/home"
                   value={savePath}
                   onChange={(e) => setSavePath(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -310,7 +310,7 @@ export default function SettingInfo() {
                   placeholder="10"
                   value={Hertz}
                   onChange={(e) => setHertz(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   min={1}
                   step={1}
                 />
@@ -329,7 +329,7 @@ export default function SettingInfo() {
                   placeholder="data_1"
                   value={fileName}
                   onChange={(e) => setFileName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -341,10 +341,13 @@ export default function SettingInfo() {
                 <select
                   value={fileFormat}
                   onChange={(e) => setFileFormat(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-1 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="json">json</option>
                   <option value="csv">csv</option>
+                  <option value="yaml">yaml</option>
+                  <option value="hdf5">hdf5</option>
+
                 </select>
               </div>
             </div>
@@ -361,9 +364,24 @@ export default function SettingInfo() {
               placeholder="pick and place a red cube"
               value={saveTask}
               onChange={(e) => setsaveTask(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </section>
+
+          {/* ✅ Robot Size(m) */}
+          <section className="flex items-center space-x-2">
+            <label className="text-lg font-semibold text-gray-800">
+              Robot Size (m):
+            </label>
+            <input
+              type="text"
+              placeholder="0.6"
+              value={robotSize}
+              onChange={(e) => setRobotSize(e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-24"
+            />
+          </section>
+
         </div>
       </div>
 
@@ -386,7 +404,7 @@ export default function SettingInfo() {
           </button>
 
           {/* 우측: Recording 영역 (6) */}
-          <div className="flex-[6]">
+          <div className="flex-[6] -mt-2">
             {!collecting ? (
               // === 기본 상태: Recording start ===
               <button

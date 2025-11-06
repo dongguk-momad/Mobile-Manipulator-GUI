@@ -8,9 +8,9 @@ function Joystick({
   gearStatus = "중립",
   jointValues = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 }) {
-  // 1.25배 확대
-  const radius = 40;
-  const handleRadius = 5;
+  // 1.1배 확대된 기본 크기 설정
+  const radius = 40 * 1.1;
+  const handleRadius = 5 * 1.1;
   const distance = radius - handleRadius;
 
   const angleInRadians = ((angle - 90) * Math.PI) / 180;
@@ -82,10 +82,11 @@ function Joystick({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
         {/* 왼쪽: Angular Velocity Input */}
         <div className="flex flex-col items-center justify-center text-center">
-          <p className="text-xl text-gray-700 font-semibold text-base mb-3">
+          <p className="text-xl text-gray-700 font-semibold mb-3">
             Angular Velocity Input
           </p>
-          <div className="relative w-40 h-40 bg-gray-100 rounded-full border border-gray-300">
+          {/* 1.1배 확대된 조이스틱 */}
+          <div className="relative w-44 h-44 bg-gray-100 rounded-full border border-gray-300">
             <svg className="absolute top-0 left-0 w-full h-full">
               {renderTicks()}
               <line
@@ -115,38 +116,41 @@ function Joystick({
 
         {/* 오른쪽: Pedal Input */}
         <div className="flex flex-col justify-center px-4">
-          <p className="text-2xl text-gray-700 font-semibold text-base mb-4 text-center">
+          <p className="text-xl text-gray-700 font-semibold mb-4 text-center">
             Pedal Input
           </p>
 
-          {/* Accel */}
-          <div className="mb-5">
-            <p className="text-sm text-gray-500 mb-2">Accel</p>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className="bg-green-500 h-3 rounded-full transition-all duration-200"
-                style={{ width: `${accel}%` }}
-              />
+          {/* 게이지만 1.1배 확대 */}
+          <div className="scale-[1.1] origin-center">
+            {/* Accel */}
+            <div className="mb-5">
+              <p className="text-sm text-gray-500 mb-2">Accel</p>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-green-500 h-3 rounded-full transition-all duration-200"
+                  style={{ width: `${accel}%` }}
+                />
+              </div>
+              <p className="text-right text-xs text-gray-600 mt-1">{accel}%</p>
             </div>
-            <p className="text-right text-xs text-gray-600 mt-1">{accel}%</p>
-          </div>
 
-          {/* Brake */}
-          <div>
-            <p className="text-sm text-gray-500 mb-2">Brake</p>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className="bg-red-500 h-3 rounded-full transition-all duration-200"
-                style={{ width: `${brake}%` }}
-              />
+            {/* Brake */}
+            <div>
+              <p className="text-sm text-gray-500 mb-2">Brake</p>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-red-500 h-3 rounded-full transition-all duration-200"
+                  style={{ width: `${brake}%` }}
+                />
+              </div>
+              <p className="text-right text-xs text-gray-600 mt-1">{brake}%</p>
             </div>
-            <p className="text-right text-xs text-gray-600 mt-1">{brake}%</p>
           </div>
         </div>
       </div>
 
       {/* Master Robot Arm */}
-      <div className="mt-5 pt-4 border-t border-gray-100">
+      <div className="mt-10 pt-5 border-t border-gray-100">
         <p className="text-xl text-gray-700 font-medium mb-2">
           Master Robotarm Joint Position
         </p>

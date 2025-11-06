@@ -110,8 +110,8 @@ function App() {
   }, []);
 
     return (
-      <div className="bg-gray-100 min-h-screen p-6"> {/* 전체 배경색과 패딩 설정 */}
-        <h1 className="text-3xl font-semibold text-center text-gray-800 mb-8">
+      <div className="bg-gray-100 min-h-screen p-12"> {/* 전체 배경색과 패딩 설정 */}
+        <h1 className="text-4xl font-semibold text-center text-gray-800 mb-10">
           Mobile Manipulator Driver
         </h1> {/* 제목 스타일링 */}
 
